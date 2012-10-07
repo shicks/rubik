@@ -30,7 +30,7 @@ class D3:
     elif bt == 'F': # face
       return ''
     elif self.flip:
-      return pos[self.rot] >= 'a' and '*' or ''
+      return pos[self.rot] not in 'FBUDLR' and '*' or ''
     else:
       return self.rot != 0 and '*' or ''
   def __cmp__(self, other):
@@ -39,7 +39,7 @@ class D3:
 
 # TODO(sdh): figure out how to not duplicate this...
 def block_type(name):
-  return ' FEV'[sum([c < 'a' for c in name])]
+  return ' FEV'[sum([c in 'FBUDLR' for c in name])]
 
 D3.e0 = D3('e', 0, 0)
 D3.e1 = D3('+', 0, 1)

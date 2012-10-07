@@ -13,7 +13,7 @@ class Cube:
   #  return cube
 
 def block_type(name):
-  return ' FEV'[sum([c < 'a' for c in name])]
+  return ' FEV'[sum([c in 'FBUDLR' for c in name])]
 
 class Block:
   def __init__(self, name, orientation, cube = None):
@@ -126,7 +126,7 @@ class Permutation:
     return r
   def __pow__(self, num):
     if num == 0:
-      return Permutation.e
+      return self.identity() # Permutation.e
     elif num == 1:
       return self
     elif self.power and (self.power * num > 0 or not self.label):
@@ -146,7 +146,7 @@ class Permutation:
     return p.simplify()
   def simplify(self):
     if str(self) == '()':
-      return Permutation.e
+      return self.identity() # Permutation.e
     return self
   def internalMult(self, otherTargets):
     targets = []
@@ -196,7 +196,9 @@ class Permutation:
     for i, t in enumerate(self.cube.blocks):
       if block_type(t.name) not in bt:
         targets[i] = t
-    return Permutation(self.cube, targets)    
+    return Permutation(self.cube, targets)
+  def identity(self):
+    return Permutation(self.cube).named('e')
 
 Permutation.DEBUG = False
 

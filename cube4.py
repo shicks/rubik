@@ -66,14 +66,14 @@ Bdl = Block('Bdl', D3.e0, Cube4)
 Bdr = Block('Bdr', D3.e0, Cube4)
 
 # Must be defined after all blocks
-e = Permutation(Cube4).named('e')
+Cube4.e = Permutation(Cube4).named('e')
 
 # Operations
 Bff = (cycle(FUL, FUR.at(D3.F), FDR, FDL.at(D3.F))
        * cycle(FUl, FuR.at(D3.F), FDr, FdL.at(D3.F))
        * cycle(FUr, FdR.at(D3.F), FDl, FuL.at(D3.F))
        * cycle(Ful, Fur, Fdr, Fdl)).named('Bff')
-Bf = (cycle(fUL, fUR.at(D3.F), fDL.at(D3.F))
+Bf = (cycle(fUL, fUR.at(D3.F), fDR, fDL.at(D3.F))
       * cycle(fUl, fuR, fDr, fdL)
       * cycle(fUr, fdR, fDl, fuL)).named('Bf')
 Bb = (cycle(bUL, bUR.at(D3.F), bDR, bDL.at(D3.F))
@@ -82,7 +82,7 @@ Bb = (cycle(bUL, bUR.at(D3.F), bDR, bDL.at(D3.F))
 Bbb = (cycle(BUL, BUR.at(D3.F), BDR, BDL.at(D3.F))
        * cycle(BUl, BuR.at(D3.F), BDr, BdL.at(D3.F))
        * cycle(BUr, BdR.at(D3.F), BDl, BuL.at(D3.F))
-       * cycle(Bul, Bur, Bdr, Bdl)).named('Bff')
+       * cycle(Bul, Bur, Bdr, Bdl)).named('Bbb')
 Fff = Bff.inv().named('Fff')
 Ff = Bf.inv().named('Ff')
 Fb = Bb.inv().named('Fb')
@@ -132,6 +132,9 @@ OR = (Drr*Dr*Dl*Dll).named('OR')
 OB = (OF.inv()).named('OB')
 OD = (OU.inv()).named('OD')
 OL = (OR.inv()).named('OL')
+
+# Quick check that all the basic permutations are likely correct.
+assert str(OD*OL*OU*OF) == '()'
 
 # Additional permutations
 
