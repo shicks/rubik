@@ -1,5 +1,7 @@
 # Methods for dealing with cubes in general
 
+import base
+
 class Cube:
   def __init__(self):
     self.blocks = []
@@ -11,9 +13,6 @@ class Cube:
   #  for arg in args:
   #    cube = arg(cube)
   #  return cube
-
-def block_type(name):
-  return ' FEV'[sum([c in 'FBUDLR' for c in name])]
 
 class Block:
   def __init__(self, name, orientation, cube = None):
@@ -30,19 +29,52 @@ class Block:
     return str(self)
   def __cmp__(self, other):
     if not isinstance(other, Block): return NotImplemented
-    val = cmp(self.name, other.name)
-    if val != 0: return val
-    return cmp(self.orientation, other.orientation)
+    return (base.ComparisonChain()
+            .compare(self.cube, other.cube)
+            .compare(self.name, other.name)
+            .compare(self.orientation, other.orientation)
+            .end())
   def fromOrientation(self, orient):
     # don't worry about orientation of edges
-    if block_type(self.name) == 'E': return self
+    if self.type() == 'E': return self
     return self.at(self.orientation * orient.inv())
   def at(self, orient):
     block = Block(self.name, orient)
     block.cube = self.cube
     return block
+  def showOrientation(self, orientation):
+    """
+    Formats the orientation given the block type (and possibly its position).
+    The default implementation (for cubes) is to show a different
+    representation of D3 depending on whether it's a corner, edge, or face.
+    For corners it's simply the name, or blank for e.  For edges, it's * for
+    rotations and flips around the axis.
+    """
+    bt = self.type()
+    if bt == 'V': # corner
+      return orientation.cname
+    elif bt == 'F': # face
+      return ''
+    elif orientation.flip:
+      return self.name[orientation.rot] not in 'FBUDLR' and '*' or ''
+    else:
+      return orientation.rot != 0 and '*' or ''
   def display(self):
-    return self.name + self.orientation.at(self.name)
+    return self.displayName() + self.displayOrientation()
+  def displayName(self):
+    return self.name
+  def displayOrientation(self, relativeTo=None):
+    if relativeTo is None:
+      return self.showOrientation(self.orientation)
+    orient = self.fromOrientation(relativeTo.orientation).orientation
+    return relativeTo.showOrientation(orient)
+  def type(self):
+    """
+    Returns the type of block.  The default implementation (for cube-style
+    puzzles) uses F for face blocks, E for edges, and V for vertices, but
+    this can be overridden, or not used at all (i.e. return '').
+    """
+    return ' FEV'[sum([c in 'FBUDLR' for c in self.name])]
 
 # Permutations
 class Permutation:
@@ -73,7 +105,7 @@ class Permutation:
       i2 = self.cube.index[t.name]
       if t == self.cube.blocks[i]: continue # unchanged, so skip
       if i == i2:
-        cycles.append('(%s)%s' % (t.name, t.orientation.at(t.name)))
+        cycles.append('(%s)%s' % (t.displayName(), t.displayOrientation()))
         continue
       t2 = t
       t = self.cube.blocks[i]
@@ -86,7 +118,7 @@ class Permutation:
         t2 = self.targets[self.cube.index[t2.name]]
       orient = t2.fromOrientation(t.orientation).orientation
       #orient = t2.orientation * t.orientation.inv()
-      cycles.append('(%s)%s' % (' '.join(cycle), orient.at(t.name)))
+      cycles.append('(%s)%s' % (' '.join(cycle), t2.displayOrientation(t)))
     if cycles:
       self.strng = ' '.join(cycles)
     else:
@@ -194,7 +226,7 @@ class Permutation:
   def filter(self, bt):
     targets = self.targets
     for i, t in enumerate(self.cube.blocks):
-      if block_type(t.name) not in bt:
+      if t.type() not in bt:
         targets[i] = t
     return Permutation(self.cube, targets)
   def identity(self):
