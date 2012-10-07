@@ -47,28 +47,29 @@ D3.elts = [[D3.e0, D3.e1, D3.e2],
            [D3.F, D3.U, D3.L]]
 
 class Cube:
-  blocks = []
-  index = {}
   def __init__(self):
-    self.targets = [block for block in Cube.blocks]
-  def __call__(self, *args):
-    """Applies permutations in series."""
-    cube = self
-    for arg in args:
-      cube = arg(cube)
-    return cube
+    self.blocks = []
+    self.index = {}
+    #self.targets = [block for block in Cube.blocks]
+  #def __call__(self, *args):
+  #  """Applies permutations in series."""
+  #  cube = self
+  #  for arg in args:
+  #    cube = arg(cube)
+  #  return cube
 
 def block_type(name):
   return ' FEV'[sum([c < 'a' for c in name])]
 
 class Block:
-  def __init__(self, name, orientation, add = False):
+  def __init__(self, name, orientation, cube = None):
+    self.cube = cube
     self.name = name
     self.orientation = orientation
     # Add self to the cube
-    if add:
-      Cube.index[self.name] = len(Cube.blocks)
-      Cube.blocks.append(self)
+    if cube:
+      cube.index[self.name] = len(cube.blocks)
+      cube.blocks.append(self)
   def __str__(self):
     return self.name + str(self.orientation)
   def __repr__(self):
@@ -83,19 +84,22 @@ class Block:
     if block_type(self.name) == 'E': return self
     return self.at(self.orientation * orient.inv())
   def at(self, orient):
-    return Block(self.name, orient)
+    block = Block(self.name, orient)
+    block.cube = self.cube
+    return block
   def display(self):
     return self.name + self.orientation.at(self.name)
 
 # TODO(sdh): parametrize by the Cube, so that we can have diff kinds
 # Permutations
 class Permutation:
-  def __init__(self, targets=None, components=None):
-    self.targets = [target for target in (targets or Cube.blocks)]
+  def __init__(self, cube, targets=None, components=None):
+    self.cube = cube
+    self.targets = [target for target in (targets or cube.blocks)]
     if Permutation.DEBUG:
       print targets
       print self.targets
-      print (targets or Cube.blocks)
+      print (targets or cube.blocks)
     self.components = components
     self.label = self.strng = self.power = self.base = None
   def named(self, label):
@@ -113,20 +117,20 @@ class Permutation:
     cycles = []
     for i,t in enumerate(self.targets):
       if t.name in found: continue
-      i2 = Cube.index[t.name]
-      if t == Cube.blocks[i]: continue # unchanged, so skip
+      i2 = self.cube.index[t.name]
+      if t == self.cube.blocks[i]: continue # unchanged, so skip
       if i == i2:
         cycles.append('(%s)%s' % (t.name, t.orientation.at(t.name)))
         continue
       t2 = t
-      t = Cube.blocks[i]
+      t = self.cube.blocks[i]
       cycle = [t.name]
       found[t.name] = True
       while t2.name not in found:
         found[t2.name] = True
         t = t2.fromOrientation(t.orientation)
         cycle.append(t.display())
-        t2 = self.targets[Cube.index[t2.name]]
+        t2 = self.targets[self.cube.index[t2.name]]
       orient = t2.fromOrientation(t.orientation).orientation
       #orient = t2.orientation * t.orientation.inv()
       cycles.append('(%s)%s' % (' '.join(cycle), orient.at(t.name)))
@@ -177,12 +181,13 @@ class Permutation:
     p = self
     if num < 0:
       p = p.inv()
-    targets = Cube.blocks # would be nice to use Permutation.e but doesn't work?
+    targets = self.cube.blocks # Permutation.e doesn't work?
     if Permutation.DEBUG: print targets
     for i in range(abs(num)):
       targets = p.internalMult(targets)
       if Permutation.DEBUG: print targets
-    p = Permutation(targets, [p] * abs(num)).named('%s^%d' % (self.name(), num))
+    p = Permutation(self.cube, targets, [p] * abs(num))
+    p = p.named('%s^%d' % (self.name(), num))
     p.base = self
     p.power = num
     return p.simplify()
@@ -193,7 +198,7 @@ class Permutation:
   def internalMult(self, otherTargets):
     targets = []
     for target in otherTargets:
-      result = self.targets[Cube.index[target.name]]
+      result = self.targets[self.cube.index[target.name]]
       targets.append(result.at(result.orientation * target.orientation))
     return targets
   def __mul__(self, other):
@@ -202,28 +207,29 @@ class Permutation:
     components = []
     other.addComponents(components) # read left-to-right
     self.addComponents(components)
-    return Permutation(targets, self.rewriteComponents(components)).simplify()
+    return Permutation(self.cube, targets, self.rewriteComponents(components)
+                       ).simplify()
   def inv(self):
     if self.power:
       return self.base ** -self.power
-    targets = [None] * len(Cube.blocks)
+    targets = [None] * len(self.cube.blocks)
     for i, t2 in enumerate(self.targets):
-      i2 = Cube.index[t2.name]
-      t = Cube.blocks[i]
+      i2 = self.cube.index[t2.name]
+      t = self.cube.blocks[i]
       targets[i2] = t.at(t.orientation * t2.orientation.inv())
     if self.components:
       components = [c.inv() for c in self.components]
       components.reverse()
     else:
       components = None
-    p = Permutation(targets, components)
+    p = Permutation(self.cube, targets, components)
     if self.label:
       p = p.named(self.label + "^-1")
     p.base = self
     p.power = -1
     return p.simplify()
   def __call__(self, block): # TODO: make this work for whole cubes too
-    return (self.targets[Cube.index[block.name]]
+    return (self.targets[self.cube.index[block.name]]
             .fromOrientation(block.orientation))
   def name(self):
     if self.label:
@@ -233,87 +239,90 @@ class Permutation:
     return ' '.join([c.name() for c in self.components])
   def filter(self, bt):
     targets = self.targets
-    for i, t in enumerate(Cube.blocks):
+    for i, t in enumerate(self.cube.blocks):
       if block_type(t.name) not in bt:
         targets[i] = t
-    return Permutation(targets)    
+    return Permutation(self.cube, targets)    
 
 Permutation.DEBUG = False
 
 def cycle(*blocks):
-  targets = [target for target in Cube.blocks]
+  cube = blocks[0].cube
+  targets = [target for target in cube.blocks]
   last = blocks[0]
   blocks = list(blocks[1:]) + [last]
   for block in blocks:
     next = block.at(block.orientation * last.orientation.inv())
-    targets[Cube.index[last.name]] = next
+    targets[cube.index[last.name]] = next
     last = block
-  return Permutation(targets)
+  return Permutation(cube, targets)
+
+Cube4 = Cube()
 
 # Corner blocks
-FUL = Block('FUL', D3.e0, True)
-FUR = Block('FUR', D3.e0, True)
-FDL = Block('FDL', D3.e0, True)
-FDR = Block('FDR', D3.e0, True)
-BUL = Block('BUL', D3.e0, True)
-BUR = Block('BUR', D3.e0, True)
-BDL = Block('BDL', D3.e0, True)
-BDR = Block('BDR', D3.e0, True)
+FUL = Block('FUL', D3.e0, Cube4)
+FUR = Block('FUR', D3.e0, Cube4)
+FDL = Block('FDL', D3.e0, Cube4)
+FDR = Block('FDR', D3.e0, Cube4)
+BUL = Block('BUL', D3.e0, Cube4)
+BUR = Block('BUR', D3.e0, Cube4)
+BDL = Block('BDL', D3.e0, Cube4)
+BDR = Block('BDR', D3.e0, Cube4)
 
 # Edge blocks
-FUl = Block('FUl', D3.e0, True)
-FUr = Block('FUr', D3.e0, True)
-FuL = Block('FuL', D3.e0, True)
-FdL = Block('FdL', D3.e0, True)
-FuR = Block('FuR', D3.e0, True)
-FdR = Block('FdR', D3.e0, True)
-FDl = Block('FDl', D3.e0, True)
-FDr = Block('FDr', D3.e0, True)
-fUL = Block('fUL', D3.e0, True)
-fUR = Block('fUR', D3.e0, True)
-fDL = Block('fDL', D3.e0, True)
-fDR = Block('fDR', D3.e0, True)
-bUL = Block('bUL', D3.e0, True)
-bUR = Block('bUR', D3.e0, True)
-bDL = Block('bDL', D3.e0, True)
-bDR = Block('bDR', D3.e0, True)
-BUl = Block('BUl', D3.e0, True)
-BUr = Block('BUr', D3.e0, True)
-BuL = Block('BuL', D3.e0, True)
-BdL = Block('BdL', D3.e0, True)
-BuR = Block('BuR', D3.e0, True)
-BdR = Block('BdR', D3.e0, True)
-BDl = Block('BDl', D3.e0, True)
-BDr = Block('BDr', D3.e0, True)
+FUl = Block('FUl', D3.e0, Cube4)
+FUr = Block('FUr', D3.e0, Cube4)
+FuL = Block('FuL', D3.e0, Cube4)
+FdL = Block('FdL', D3.e0, Cube4)
+FuR = Block('FuR', D3.e0, Cube4)
+FdR = Block('FdR', D3.e0, Cube4)
+FDl = Block('FDl', D3.e0, Cube4)
+FDr = Block('FDr', D3.e0, Cube4)
+fUL = Block('fUL', D3.e0, Cube4)
+fUR = Block('fUR', D3.e0, Cube4)
+fDL = Block('fDL', D3.e0, Cube4)
+fDR = Block('fDR', D3.e0, Cube4)
+bUL = Block('bUL', D3.e0, Cube4)
+bUR = Block('bUR', D3.e0, Cube4)
+bDL = Block('bDL', D3.e0, Cube4)
+bDR = Block('bDR', D3.e0, Cube4)
+BUl = Block('BUl', D3.e0, Cube4)
+BUr = Block('BUr', D3.e0, Cube4)
+BuL = Block('BuL', D3.e0, Cube4)
+BdL = Block('BdL', D3.e0, Cube4)
+BuR = Block('BuR', D3.e0, Cube4)
+BdR = Block('BdR', D3.e0, Cube4)
+BDl = Block('BDl', D3.e0, Cube4)
+BDr = Block('BDr', D3.e0, Cube4)
 
 # Face blocks
-Ful = Block('Ful', D3.e0, True)
-Fur = Block('Fur', D3.e0, True)
-Fdl = Block('Fdl', D3.e0, True)
-Fdr = Block('Fdr', D3.e0, True)
-fUl = Block('fUl', D3.e0, True)
-fUr = Block('fUr', D3.e0, True)
-fDl = Block('fDl', D3.e0, True)
-fDr = Block('fDr', D3.e0, True)
-fuL = Block('fuL', D3.e0, True)
-fuR = Block('fuR', D3.e0, True)
-fdL = Block('fdL', D3.e0, True)
-fdR = Block('fdR', D3.e0, True)
-bUl = Block('bUl', D3.e0, True)
-bUr = Block('bUr', D3.e0, True)
-bDl = Block('bDl', D3.e0, True)
-bDr = Block('bDr', D3.e0, True)
-buL = Block('buL', D3.e0, True)
-buR = Block('buR', D3.e0, True)
-bdL = Block('bdL', D3.e0, True)
-bdR = Block('bdR', D3.e0, True)
-Bul = Block('Bul', D3.e0, True)
-Bur = Block('Bur', D3.e0, True)
-Bdl = Block('Bdl', D3.e0, True)
-Bdr = Block('Bdr', D3.e0, True)
+Ful = Block('Ful', D3.e0, Cube4)
+Fur = Block('Fur', D3.e0, Cube4)
+Fdl = Block('Fdl', D3.e0, Cube4)
+Fdr = Block('Fdr', D3.e0, Cube4)
+fUl = Block('fUl', D3.e0, Cube4)
+fUr = Block('fUr', D3.e0, Cube4)
+fDl = Block('fDl', D3.e0, Cube4)
+fDr = Block('fDr', D3.e0, Cube4)
+fuL = Block('fuL', D3.e0, Cube4)
+fuR = Block('fuR', D3.e0, Cube4)
+fdL = Block('fdL', D3.e0, Cube4)
+fdR = Block('fdR', D3.e0, Cube4)
+bUl = Block('bUl', D3.e0, Cube4)
+bUr = Block('bUr', D3.e0, Cube4)
+bDl = Block('bDl', D3.e0, Cube4)
+bDr = Block('bDr', D3.e0, Cube4)
+buL = Block('buL', D3.e0, Cube4)
+buR = Block('buR', D3.e0, Cube4)
+bdL = Block('bdL', D3.e0, Cube4)
+bdR = Block('bdR', D3.e0, Cube4)
+Bul = Block('Bul', D3.e0, Cube4)
+Bur = Block('Bur', D3.e0, Cube4)
+Bdl = Block('Bdl', D3.e0, Cube4)
+Bdr = Block('Bdr', D3.e0, Cube4)
 
 # Must be defined after all blocks
-Permutation.e = Permutation().named('e')
+Permutation.e = Permutation(Cube4).named('e')
 
 # Operations
 Bff = (cycle(FUL, FUR.at(D3.F), FDR, FDL.at(D3.F))
