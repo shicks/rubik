@@ -76,6 +76,8 @@ class Block:
     """
     return ' FEV'[sum([c in 'FBUDLR' for c in self.name])]
 
+# TODO(sdh): represent permutations as sparse.
+
 # Permutations
 class Permutation:
   def __init__(self, cube, targets=None, components=None):
