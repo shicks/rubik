@@ -2,7 +2,7 @@
 
 import base
 
-class Cube:
+class Cube(object):
   def __init__(self):
     self.blocks = []
     self.index = {}
@@ -14,7 +14,7 @@ class Cube:
   #    cube = arg(cube)
   #  return cube
 
-class Block:
+class Block(object):
   def __init__(self, name, orientation, cube = None):
     self.cube = cube
     self.name = name
@@ -36,7 +36,7 @@ class Block:
             .end())
   def fromOrientation(self, orient):
     # don't worry about orientation of edges
-    if self.type() == 'E': return self
+    if self.type() in 'eE': return self
     return self.at(self.orientation * orient.inv())
   def at(self, orient):
     block = Block(self.name, orient)
@@ -53,7 +53,7 @@ class Block:
     bt = self.type()
     if bt == 'V': # corner
       return orientation.cname
-    elif bt == 'F': # face
+    elif bt in 'fF': # face
       return ''
     elif orientation.flip:
       return self.name[orientation.rot] not in 'FBUDLR' and '*' or ''
@@ -226,9 +226,15 @@ class Permutation:
       return '?'
     return ' '.join([c.name() for c in self.components])
   def filter(self, bt):
-    targets = self.targets
+    targets = [t for t in self.targets]
     for i, t in enumerate(self.cube.blocks):
       if t.type() not in bt:
+        targets[i] = t
+    return Permutation(self.cube, targets)
+  def filterP(self, predicate):
+    targets = [t for t in self.targets]
+    for i, t in enumerate(self.cube.blocks):
+      if not predicate(t):
         targets[i] = t
     return Permutation(self.cube, targets)
   def identity(self):
@@ -246,6 +252,16 @@ def cycle(*blocks):
     targets[cube.index[last.name]] = next
     last = block
   return Permutation(cube, targets)
+
+def swaps(first, second):
+  perm = None
+  for a,b in zip(first, second):
+    p = cycle(a, b)
+    if perm is None:
+      perm = p
+    else:
+      perm = p * perm
+  return perm
 
 # Utility functions
 

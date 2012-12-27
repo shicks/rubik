@@ -235,3 +235,48 @@ Um3R = cat(Um, Ruu**2, Dm, Ruu, Um, Ruu, Dm)
 Um3L = cat(Um, Luu**2, Dm, Luu, Um, Luu, Dm)
 Ul3R = cat(Ul, Ruu**2, Dl, Ruu, Ul, Ruu, Dl)
 Ul3L = cat(Ul, Luu**2, Dl, Luu, Ul, Luu, Dl)
+
+# First attempt at moving middles/edges
+Mfr = cat(Um, Ruu, Dm, Luu, Fff, Um, Luu, Dm, Ruu, Bff)
+Mbr = cat(Um, Ruu, Dm, Luu, Bff, Um, Luu, Dm, Ruu, Fff)
+Mfl = cat(Um, Luu, Dm, Ruu, Fff, Um, Ruu, Dm, Luu, Bff)
+Mbl = cat(Um, Luu, Dm, Ruu, Bff, Um, Ruu, Dm, Luu, Fff)
+
+face = lambda b:b.type() == 'F' and '_' not in b.name
+FACE = lambda b:b.type() == 'F' and '_' in b.name
+edge = lambda b:b.type() == 'E' and '_' not in b.name
+EDGE = lambda b:b.type() == 'E' and '_' in b.name
+
+# Attempt to move middle faces
+#MrR = cat(Ur, Ruu, Dm, Luu, Dr, Ruu, Um, Luu)
+#MrL = cat(Ur, Luu, Dm, Ruu, Dr, Luu, Um, Ruu)
+#MlR = cat(Ul, Ruu, Dm, Luu, Dl, Ruu, Um, Luu)
+#MlL = cat(Ul, Luu, Dm, Ruu, Dl, Luu, Um, Ruu)
+
+# This move puts F_l into bU_ (and messes up F a bit)
+#M1 = cat(Dm, Luu, Ur, Ruu, Um, Luu, Dr, Ruu**2, Ul, Luu, Dm, Ruu, Dl, Luu, Um)
+
+# Move middles last:
+# (Fu_ F_r _Ur)
+M1 = cat(Ur, Ruu, Um, Luu, Dr, Ruu, Dm, Luu
+# (Fur bUr Ful)
+R1 = cat(Ur, Ruu, Ul, Luu, Dr, Ruu, Dl, Luu)
+
+#####
+# How to permute edges more easily (no worry of faces)
+# Um1r flips _UR and BU_, then M1:
+
+# does some flips... :-/ also not localized to one face yet
+#R1 = cat(Ruu, Ur, Ruu**2, Ul, Ruu**2, Dl, Ruu**2, Dr, Ruu)
+
+# This one is long and messy, but does a pair of opposite swaps
+# (FUr BUl) (fUL, bUR)
+Rswap = cat(Ff, Drr**2, Rdd, Dr, Rdd**2, Ul, Rdd**2, Ur, Rdd**2, Dl, Rdd, Urr**2, Bf)
+
+
+### Principle: find a move that does even close to what we want
+### then move what we need into place (flips are okay if the pre/post
+### moves flip, too)
+Mtri = cat(Fbb**2, Ruu, Dm, Ruu**2, Um, Ruu, Fbb**2) # no flips!!!
+Ltri = cat(Ur, Ruu, Dl, Ruu**2, Dr, Ruu**2, Ur, Ruu**2, Ul, Ruu, Dr)
+Rtri = cat(Ul, Ruu, Dr, Ruu**2, Dl, Ruu**2, Ul, Ruu**2, Ur, Ruu, Dl)
