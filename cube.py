@@ -1,5 +1,6 @@
 # Methods for dealing with cubes in general
 
+import sys
 import base
 
 class Cube(object):
@@ -107,7 +108,8 @@ class Permutation:
       i2 = self.cube.index[t.name]
       if t == self.cube.blocks[i]: continue # unchanged, so skip
       if i == i2:
-        cycles.append('(%s)%s' % (t.displayName(), t.displayOrientation()))
+        if t.displayOrientation():
+          cycles.append('(%s)%s' % (t.displayName(), t.displayOrientation()))
         continue
       t2 = t
       t = self.cube.blocks[i]
